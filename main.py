@@ -53,7 +53,28 @@ class DawnValidatorBot:
 ╚══════════════════════════════════════════════╝{Colors.RESET}
 """)
 
-    # ... [之前的其他方法保持不变] ...
+    def load_accounts(self, mode: str) -> List[Dict[str, str]]:
+        if mode == "1":
+            return self._get_single_account()
+        else:
+            return self._load_accounts_from_file()
+
+    def _load_accounts_from_file(self) -> List[Dict[str, str]]:
+        accounts = []
+        try:
+            with open("accounts.txt", "r") as f:
+                lines = f.readlines()
+                for line in lines:
+                    if ":" in line:
+                        email, token = line.strip().split(":")
+                        accounts.append({"email": email, "token": token})
+            if accounts:
+                self.log_colored("SUCCESS", f"已从文件加载 {len(accounts)} 个账户", Colors.SUCCESS)
+            else:
+                self.log_colored("ERROR", "accounts.txt 为空", Colors.ERROR)
+        except FileNotFoundError:
+            self.log_colored("ERROR", "未找到 accounts.txt 文件", Colors.ERROR)
+        return accounts
 
     @staticmethod
     def _get_single_account() -> List[Dict[str, str]]:
@@ -73,20 +94,85 @@ class DawnValidatorBot:
             print(f"{Colors.SUCCESS}成功: 已接收账户详情{Colors.RESET}")
             return [{'email': email, 'token': token}]
 
+    def load_proxies(self) -> None:
+        try:
+            with open("proxies.txt", "r") as f:
+                self.proxies = [line.strip() for line in f if line.strip()]
+            if self.proxies:
+                self.log_colored("SUCCESS", f"已加载 {len(self.proxies)} 个代理", Colors.SUCCESS)
+            else:
+                self.log_colored("WARNING", "proxies.txt 为空", Colors.WARNING)
+        except FileNotFoundError:
+            self.log_colored("WARNING", "未找到 proxies.txt 文件", Colors.WARNING)
+
+    def get_random_proxy(self) -> Optional[Dict[str, str]]:
+        if not self.proxies:
+            return None
+        proxy = random.choice(self.proxies)
+        return {"http": f"http://{proxy}", "https": f"http://{proxy}"}
+
+    async def process_account(self, account: Dict[str, str]) -> int:
+        try:
+            proxy = self.get_random_proxy()
+            headers = {
+                "accept": "application/json",
+                "content-type": "application/json",
+                "origin": "chrome-extension://fpdkjdnhkakefebpekbdhillbhonfjjp",
+                "user-agent": "Mozilla/5.0",
+                "authorization": f"Bearer {account['token']}"
+            }
+
+            # 保持在线
+            response = self.session.post(
+                self.API_URLS["keepalive"],
+                headers=headers,
+                proxies=proxy,
+                timeout=30
+            )
+            if response.status_code == 200:
+                self.log_colored("SUCCESS", f"账户 {account['email']} 保持在线成功", Colors.SUCCESS)
+            else:
+                self.log_colored("ERROR", f"账户 {account['email']} 保持在线失败", Colors.ERROR)
+
+            # 获取积分
+            response = self.session.get(
+                self.API_URLS["getPoints"],
+                headers=headers,
+                proxies=proxy,
+                timeout=30
+            )
+            if response.status_code == 200:
+                points_data = response.json()
+                return points_data
+            else:
+                self.log_colored("ERROR", f"获取积分失败: {response.status_code}", Colors.ERROR)
+                return 0
+
+        except Exception as e:
+            self.log_colored("ERROR", f"处理账户时出错: {str(e)}", Colors.ERROR)
+            return 0
+
     def log_colored(self, level: str, message: str, color: str) -> None:
-        message = message.replace("Starting", "开始")
-                 .replace("Completed", "完成")
-                 .replace("Failed", "失败")
-                 .replace("Error", "错误")
-                 .replace("Success", "成功")
-                 .replace("Loading", "加载中")
-                 .replace("Processing", "处理中")
-                 .replace("Waiting", "等待")
-                 .replace("points", "积分")
-                 .replace("accounts", "账户")
-                 .replace("proxies", "代理")
+        message = (message.replace("Starting", "开始")
+                  .replace("Completed", "完成")
+                  .replace("Failed", "失败")
+                  .replace("Error", "错误")
+                  .replace("Success", "成功")
+                  .replace("Loading", "加载中")
+                  .replace("Processing", "处理中")
+                  .replace("Waiting", "等待")
+                  .replace("points", "积分")
+                  .replace("accounts", "账户")
+                  .replace("proxies", "代理"))
         timestamp = datetime.now().strftime("%H:%M:%S")
         print(f"[{timestamp}] {color}{level}: {message}{Colors.RESET}")
+
+    @staticmethod
+    async def countdown(seconds: int) -> None:
+        for remaining in range(seconds, 0, -1):
+            print(f"\r等待下一轮: {remaining}秒 ", end="")
+            await asyncio.sleep(1)
+        print("\r" + " " * 30 + "\r", end="")
 
 async def main():
     bot = DawnValidatorBot()

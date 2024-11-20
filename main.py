@@ -35,7 +35,7 @@ class DawnValidatorBot:
     }
 
     EXTENSION_ID = "fpdkjdnhkakefebpekbdhillbhonfjjp"
-    VERSION = "1.0.9"
+    VERSION = "1.0.7"
 
     def __init__(self):
         self.verified_accounts: Set[str] = set()

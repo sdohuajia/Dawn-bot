@@ -1,4 +1,0 @@
-#REMOVE THE EXAMPLES
-email:token
-email:token
-email:token

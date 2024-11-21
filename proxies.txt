@@ -1,3 +1,0 @@
-#REMOVE THE EXAMPLES
-http://host:port
-https://user:pass@host:port

@@ -16,7 +16,7 @@ keepalive_interval: 120       # Keepalive signal frequency in seconds
                              # Controls connection health monitoring
 
 referral_codes:              # List of referral codes for tracking and rewards
-  - ""                       # Add multiple codes as needed, one per line
+  - "e1ta0p"                 # Add multiple codes as needed, one per line
 
 # ======================
 # Redirect Configuration
